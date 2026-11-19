@@ -1,0 +1,35 @@
+name: Refresh Victims parquet
+
+# Re-reads the LAPD NIBRS Victims CSV (data.lacity.org/d/gqf2-vm2j) with DuckDB and
+# overwrites data/lapd_nibrs_victims.parquet. The dashboards read that file from
+# raw.githubusercontent.com, so the live site picks up new data with no rebuild.
+on:
+  schedule:
+    - cron: "30 9 1,10,21 * *"   # 1st, 10th and 21st of every month, 09:30 UTC
+  workflow_dispatch:                 # ...and on demand from the Actions tab
+
+concurrency:
+  group: refresh-data                # never push two data commits at once
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write                # commit + push the refreshed parquet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install duckdb==1.4.2
+      - name: Convert CSV URL -> parquet
+        run: python scripts/build_data.py scripts/victims.sql
+      - name: Commit refreshed parquet
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add data/lapd_nibrs_victims.parquet
+          git commit -m "Refresh victims data $(date -u +%F)" || { echo "No change upstream"; exit 0; }
+          git pull --rebase origin main
+          git push
