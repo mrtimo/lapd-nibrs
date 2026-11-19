@@ -48,13 +48,14 @@ function crossTab(rows, { unknown, order }, hideUnknown, topN) {
 
 export default function Dashboard({ dashboard, givens }) {
   const [by, setBy] = useUrlState("by", "descent");
-  const [mode, setMode] = useUrlState("mode", "col");
+  const [modeRaw, setMode] = useUrlState("mode", "col");
+  const mode = MODES.some(([m]) => m === modeRaw) ? modeRaw : "col"; // ignore a bad ?~mode=
   const [topN, setTopN] = useUrlState("top", 20);
   const [hideUnknown, setHideUnknown] = useUrlState("known", true);
   const [sel, setSel] = useUrlState("cell", null); // { offense, grp }
 
   const bd = BREAKDOWNS[by] || BREAKDOWNS.descent;
-  const mixKey = by === "type" ? "descent" : "type";
+  const mixKey = bd === BREAKDOWNS.type ? "descent" : "type";
   const mixBd = BREAKDOWNS[mixKey];
 
   const kpi = useQuery({ query: "crimes_by_victim", givens });
