@@ -1,0 +1,226 @@
+##! experimental.access_modifiers
+// Semantic model for the LAPD NIBRS Offenses and Victims datasets
+// (data.lacity.org k7nn-b2ep and gqf2-vm2j). LAPD switched to NIBRS reporting
+// in 2024; the handful of earlier occurrence dates are late reports.
+import "storage.malloy"
+
+#" One row per victim of a reported crime (LAPD NIBRS Victims). Victims are
+#" people, businesses, government bodies or society. Link to offenses by case_no.
+source: victims_base is victims_table include {
+  public: *
+  // raw source codes: replaced by the cleaned, labelled dimensions below
+  internal: vict_sex, vict_descent, victim_type, time_occ, area, status
+} extend {
+  primary_key: unique_victim_no
+
+  #" Victim sex, spelled out. Source codes: M, F, U (unknown), N (not a person),
+  #" TFBM (transgender woman), TMBF (transgender man). Blank = not recorded.
+  public dimension: victim_sex is
+    pick 'Male' when vict_sex = 'M'
+    pick 'Female' when vict_sex = 'F'
+    pick 'Transgender woman' when vict_sex = 'TFBM'
+    pick 'Transgender man' when vict_sex = 'TMBF'
+    pick 'Not a person' when vict_sex = 'N'
+    pick 'Unknown' when vict_sex = 'U'
+    else 'Not recorded'
+
+  #" Victim descent, with the feed's short codes ('H - Hispanic', 'W') folded into
+  #" their long names. Blank = not recorded (common for non-person victims).
+  public dimension: victim_descent is
+    pick 'Hispanic' when vict_descent = 'Hispanic' | 'H - Hispanic'
+    pick 'White' when vict_descent = 'White' | 'White/Caucasian' | 'W'
+    pick 'Black' when vict_descent = 'Black' | 'Black/African American' | 'B'
+    pick 'Asian' when vict_descent = 'Other Asian' | 'A - Asian' | 'Asian Indian' | 'Cambodian' | 'Laotian' | 'Vietnamese'
+    pick 'Chinese' when vict_descent = 'Chinese' | 'C - Chinese'
+    pick 'Korean' when vict_descent = 'Korean' | 'K - Korean'
+    pick 'Filipino' when vict_descent = 'Filipino' | 'F - Filipino'
+    pick 'Japanese' when vict_descent = 'Japanese'
+    pick 'Middle Eastern/Arab' when vict_descent = 'Middle Eastern/Arab'
+    pick 'Pacific Islander' when vict_descent = 'Pacific Islander' | 'Hawaiian' | 'U - Hawaiian' | 'Guamanian' | 'Samoan'
+    pick 'American Indian' when vict_descent = 'American Indian'
+    pick 'Other' when vict_descent = 'Other' | 'O - Other'
+    pick 'Unknown' when vict_descent = 'Unknown' | 'X - Unknown'
+    else 'Not recorded'
+
+  #" Kind of victim: Person, Business, Government, Society (Public), etc.
+  #" ('I - Person'/'Individual' and 'B - Business' are folded in).
+  public dimension: victim_category is
+    pick 'Person' when victim_type = 'Person' | 'I - Person' | 'Individual'
+    pick 'Business' when victim_type = 'Business' | 'B - Business'
+    else coalesce(victim_type, 'Not recorded')
+
+  #" Victim age band. Ages are only recorded for adult victims (18+); blank = not recorded.
+  public dimension: age_group is
+    pick '18-24' when vict_age < 25
+    pick '25-34' when vict_age < 35
+    pick '35-44' when vict_age < 45
+    pick '45-54' when vict_age < 55
+    pick '55-64' when vict_age < 65
+    pick '65+' when vict_age >= 65
+    else 'Not recorded'
+
+  #" Calendar date the crime occurred.
+  public dimension: occurred_date is date_occ.day
+  #" Month the crime occurred.
+  public dimension: occurred_month is date_occ.month
+  #" Day of week the crime occurred, Sunday-Saturday.
+  public dimension: day_of_week is
+    pick 'Sunday' when day_of_week(date_occ) = 1
+    pick 'Monday' when day_of_week(date_occ) = 2
+    pick 'Tuesday' when day_of_week(date_occ) = 3
+    pick 'Wednesday' when day_of_week(date_occ) = 4
+    pick 'Thursday' when day_of_week(date_occ) = 5
+    pick 'Friday' when day_of_week(date_occ) = 6
+    else 'Saturday'
+  #" 1 = Sunday ... 7 = Saturday; use to sort day_of_week.
+  public dimension: day_of_week_number is day_of_week(date_occ)
+
+  #" Number of victims.
+  public measure: victim_count is count()
+  #" Number of distinct incidents (case numbers) with a victim.
+  public measure: victim_case_count is count(case_no)
+  #" Average age of victims with a recorded age.
+  public measure: average_age is avg(vict_age)
+  #" Victims who were shot.
+  public measure: shot_victim_count is count() { where: victim_shot }
+}
+
+#" One row per offense in a reported crime (LAPD NIBRS Offenses). An incident
+#" (case_no) can list several offenses. Locations are rounded to the hundred block.
+source: offenses_base is offenses_table include {
+  public: *
+  // raw source codes: replaced by offense, offense_group, crime_against_type, ...
+  internal: area, nibr_group, weapon_used_cd, premise_cd, status, crime_against, time_occ
+} extend {
+  primary_key: unique_nibr_no
+
+  #" NIBRS offense category name, from the NIBR code (e.g. 23C = Shoplifting).
+  #" nibr_description has the detailed statute text.
+  public dimension: offense is
+      pick 'Murder & Nonnegligent Manslaughter' when nibr_code = '09A'
+      pick 'Negligent Manslaughter' when nibr_code = '09B'
+      pick 'Justifiable Homicide' when nibr_code = '09C'
+      pick 'Kidnapping/Abduction' when nibr_code = '100'
+      pick 'Rape' when nibr_code = '11A'
+      pick 'Sodomy' when nibr_code = '11B'
+      pick 'Sexual Assault With An Object' when nibr_code = '11C'
+      pick 'Fondling' when nibr_code = '11D'
+      pick 'Robbery' when nibr_code = '120'
+      pick 'Aggravated Assault' when nibr_code = '13A'
+      pick 'Simple Assault' when nibr_code = '13B'
+      pick 'Intimidation' when nibr_code = '13C'
+      pick 'Arson' when nibr_code = '200'
+      pick 'Extortion/Blackmail' when nibr_code = '210'
+      pick 'Burglary/Breaking & Entering' when nibr_code = '220'
+      pick 'Pocket-picking' when nibr_code = '23A'
+      pick 'Purse-snatching' when nibr_code = '23B'
+      pick 'Shoplifting' when nibr_code = '23C'
+      pick 'Theft From Building' when nibr_code = '23D'
+      pick 'Theft From Coin-Operated Machine' when nibr_code = '23E'
+      pick 'Theft From Motor Vehicle' when nibr_code = '23F'
+      pick 'Theft of Motor Vehicle Parts' when nibr_code = '23G'
+      pick 'All Other Larceny' when nibr_code = '23H'
+      pick 'Motor Vehicle Theft' when nibr_code = '240'
+      pick 'Counterfeiting/Forgery' when nibr_code = '250'
+      pick 'False Pretenses/Swindle' when nibr_code = '26A'
+      pick 'Credit Card/ATM Fraud' when nibr_code = '26B'
+      pick 'Impersonation' when nibr_code = '26C'
+      pick 'Welfare Fraud' when nibr_code = '26D'
+      pick 'Wire Fraud' when nibr_code = '26E'
+      pick 'Identity Theft' when nibr_code = '26F'
+      pick 'Hacking/Computer Invasion' when nibr_code = '26G'
+      pick 'Embezzlement' when nibr_code = '270'
+      pick 'Stolen Property Offenses' when nibr_code = '280'
+      pick 'Vandalism/Destruction of Property' when nibr_code = '290'
+      pick 'Drug/Narcotic Violations' when nibr_code = '35A'
+      pick 'Drug Equipment Violations' when nibr_code = '35B'
+      pick 'Incest' when nibr_code = '36A'
+      pick 'Statutory Rape' when nibr_code = '36B'
+      pick 'Pornography/Obscene Material' when nibr_code = '370'
+      pick 'Betting/Wagering' when nibr_code = '39A'
+      pick 'Operating/Promoting Gambling' when nibr_code = '39B'
+      pick 'Gambling Equipment Violations' when nibr_code = '39C'
+      pick 'Prostitution' when nibr_code = '40A'
+      pick 'Assisting/Promoting Prostitution' when nibr_code = '40B'
+      pick 'Purchasing Prostitution' when nibr_code = '40C'
+      pick 'Bribery' when nibr_code = '510'
+      pick 'Weapon Law Violations' when nibr_code = '520'
+      pick 'Human Trafficking, Commercial Sex Acts' when nibr_code = '64A'
+      pick 'Human Trafficking, Involuntary Servitude' when nibr_code = '64B'
+      pick 'Animal Cruelty' when nibr_code = '720'
+      pick 'Bad Checks' when nibr_code = '90A'
+      pick 'Curfew/Loitering/Vagrancy' when nibr_code = '90B'
+      pick 'Disorderly Conduct' when nibr_code = '90C'
+      pick 'Driving Under the Influence' when nibr_code = '90D'
+      pick 'Drunkenness' when nibr_code = '90E'
+      pick 'Family Offenses, Nonviolent' when nibr_code = '90F'
+      pick 'Liquor Law Violations' when nibr_code = '90G'
+      pick 'Peeping Tom' when nibr_code = '90H'
+      pick 'Trespass of Real Property' when nibr_code = '90J'
+      pick 'All Other Offenses' when nibr_code = '90Z'
+      else coalesce(nibr_code, 'Not coded')
+
+  #" NIBRS group: A = the 52 detailed offenses, B = 10 arrest-only offenses.
+  public dimension: offense_group is
+    pick 'Group A' when nibr_group = 'A'
+    pick 'Group B' when nibr_group = 'B'
+    else 'Not recorded'
+
+  #" Who the offense harms: Person, Property, Society (or all three for some offenses).
+  public dimension: crime_against_type is coalesce(crime_against, 'Not recorded')
+
+  #" Date and time the crime occurred.
+  public dimension: occurred_at is date_occ
+  #" Calendar date the crime occurred.
+  public dimension: occurred_date is date_occ.day
+  #" Month the crime occurred.
+  public dimension: occurred_month is date_occ.month
+  #" Hour of day the crime occurred, 0-23.
+  public dimension: hour_of_day is hour(date_occ)
+  #" Day of week the crime occurred, Sunday-Saturday.
+  public dimension: day_of_week is
+    pick 'Sunday' when day_of_week(date_occ) = 1
+    pick 'Monday' when day_of_week(date_occ) = 2
+    pick 'Tuesday' when day_of_week(date_occ) = 3
+    pick 'Wednesday' when day_of_week(date_occ) = 4
+    pick 'Thursday' when day_of_week(date_occ) = 5
+    pick 'Friday' when day_of_week(date_occ) = 6
+    else 'Saturday'
+  #" 1 = Sunday ... 7 = Saturday; use to sort day_of_week.
+  public dimension: day_of_week_number is day_of_week(date_occ)
+  #" Days between the crime occurring and being reported.
+  public dimension: days_to_report is days(date_occ.day to date_rptd.day)
+  #" True when a weapon (including hands/fists) was recorded.
+  public dimension: weapon_involved is weapon_used_cd is not null
+  #" True when the offense has a map location (lat/lon).
+  public dimension: has_location is lat is not null and lon is not null
+
+  #" Number of offenses.
+  public measure: offense_count is count()
+  #" Number of distinct incidents (case numbers).
+  public measure: case_count is count(case_no)
+  #" Offenses where a victim was shot.
+  public measure: shooting_count is count() { where: victim_shot }
+  #" Domestic-violence-related offenses.
+  public measure: domestic_violence_count is count() { where: domestic_violence_crime }
+  #" Hate-crime offenses.
+  public measure: hate_crime_count is count() { where: hate_crime }
+  #" Gang-related offenses.
+  public measure: gang_related_count is count() { where: gang_related_crime }
+  #" Share of offenses cleared by arrest.
+  # percent
+  public measure: arrest_rate is count() { where: status_desc ~ 'Cleared by Arrest%' } / count()
+}
+
+#" Offenses (one row per offense) with the victims of the same incident joined in,
+#" so offenses can be filtered by victim sex, descent, age group or type.
+#" Measures on offenses stay at the offense grain through the join.
+source: offenses is offenses_base extend {
+  public join_many: victims is victims_base on case_no = victims.case_no
+}
+
+#" Victims (one row per victim) with the offenses of the same incident joined in,
+#" so victims can be filtered by offense, crime-against type or location.
+source: victims is victims_base extend {
+  public join_many: offenses is offenses_base on case_no = offenses.case_no
+}

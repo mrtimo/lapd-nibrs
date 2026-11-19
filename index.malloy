@@ -1,0 +1,3 @@
+// The export surface: only what this file exports is visible to MCP clients,
+// `malloyyo dashboard dev` and a hosted Malloyyo instance.
+import { offenses, victims } from "lapd.malloy"

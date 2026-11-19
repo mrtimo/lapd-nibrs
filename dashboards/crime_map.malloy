@@ -1,0 +1,127 @@
+##! experimental.givens
+// "Where is crime happening in LA?" — every query below applies the same nine
+// filters, so the map and all charts always describe the same slice of data.
+// Layout and Plotly charts live in the sibling crime_map.jsx.
+import "../lapd.malloy"
+import "../givens.malloy"
+
+// Offenses, filtered by crime, place, time AND by the victims of the incident.
+source: filtered_offenses is offenses extend {
+  where:
+    crime_against_type ~ $CRIME_AGAINST,
+    offense ~ $OFFENSE,
+    area_name ~ $AREA,
+    occurred_date ~ $PERIOD,
+    day_of_week ~ $WEEKDAYS,
+    victims.victim_category ~ $VICTIM_TYPE,
+    victims.victim_sex ~ $VICTIM_SEX,
+    victims.victim_descent ~ $VICTIM_DESCENT,
+    victims.age_group ~ $VICTIM_AGE
+}
+
+// Victims, filtered the same way (crime filters reach them through offenses).
+source: filtered_victims is victims extend {
+  where:
+    offenses.crime_against_type ~ $CRIME_AGAINST,
+    offenses.offense ~ $OFFENSE,
+    area_name ~ $AREA,
+    occurred_date ~ $PERIOD,
+    day_of_week ~ $WEEKDAYS,
+    victim_category ~ $VICTIM_TYPE,
+    victim_sex ~ $VICTIM_SEX,
+    victim_descent ~ $VICTIM_DESCENT,
+    age_group ~ $VICTIM_AGE
+}
+
+#" Map LAPD NIBRS offenses and victims by place, month, day and hour.
+# artifact { title="LA Crime Map" } dashboard { columns=4 }
+query: crime_map is filtered_offenses -> {
+  # label="Offenses"
+  aggregate: offense_count
+  # label="Incidents"
+  aggregate: case_count
+  # label="Shootings"
+  aggregate: shooting_count
+  # label="Cleared by arrest"
+  aggregate: arrest_rate
+}
+
+// ---- queries the Plotly component draws ------------------------------------
+
+// Hundred-block locations with their offense counts. Returned as ONE row with a
+// nested list: the static site caps top-level rows at 5,000 per query, and LA
+// has ~49k distinct hundred blocks.
+query: map_points is filtered_offenses -> {
+  nest: points is {
+    where: has_location
+    group_by: lat, lon
+    aggregate:
+      offense_count
+      # label="Location"
+      location_label is max(location)
+      area_label is max(area_name)
+    order_by: offense_count desc
+    limit: 60000
+  }
+}
+
+query: offenses_by_month is filtered_offenses -> {
+  where: occurred_date >= @2024-01-01
+  group_by: occurred_month
+  aggregate: offense_count
+  order_by: occurred_month
+}
+
+query: top_offenses is filtered_offenses -> {
+  group_by: offense
+  aggregate: offense_count
+  order_by: offense_count desc
+  limit: 15
+}
+
+query: hour_by_weekday is filtered_offenses -> {
+  group_by: day_of_week_number, day_of_week, hour_of_day
+  aggregate: offense_count
+}
+
+query: offenses_by_area is filtered_offenses -> {
+  where: area_name is not null
+  group_by: area_name
+  aggregate: offense_count
+  order_by: offense_count desc
+}
+
+query: victim_totals is filtered_victims -> {
+  aggregate: victim_count, shot_victim_count, average_age
+}
+
+query: victims_by_sex is filtered_victims -> {
+  group_by: victim_sex
+  aggregate: victim_count
+  order_by: victim_count desc
+}
+
+query: victims_by_descent is filtered_victims -> {
+  group_by: victim_descent
+  aggregate: victim_count
+  order_by: victim_count desc
+}
+
+query: victims_by_age is filtered_victims -> {
+  group_by: age_group
+  aggregate: victim_count
+  order_by: age_group
+}
+
+query: victims_by_type is filtered_victims -> {
+  group_by: victim_category
+  aggregate: victim_count
+  order_by: victim_count desc
+}
+
+// Slider bounds: every month with data since NIBRS reporting began (2024).
+query: month_list is offenses_base -> {
+  where: occurred_date >= @2024-01-01
+  group_by: occurred_month
+  order_by: occurred_month
+}

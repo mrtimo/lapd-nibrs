@@ -1,0 +1,6 @@
+// Where the data lives. The parquet files are committed to this repo and
+// rebuilt by .github/workflows/refresh-*.yml, so the model reads them straight
+// from GitHub. raw.githubusercontent.com sends CORS headers, so the static
+// DuckDB-WASM dashboards can fetch them from GitHub Pages too.
+source: offenses_table is duckdb.table('https://raw.githubusercontent.com/mrtimo/lapd-nibrs/main/data/lapd_nibrs_offenses.parquet')
+source: victims_table is duckdb.table('https://raw.githubusercontent.com/mrtimo/lapd-nibrs/main/data/lapd_nibrs_victims.parquet')

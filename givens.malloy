@@ -1,0 +1,50 @@
+##! experimental.givens
+// Dashboard filters. Each is a filter<T> given: empty (f'') means "all".
+// Offense/area pickers are faceted: their option lists narrow to what the
+// other crime filters allow.
+import "lapd.malloy"
+
+given:
+  # label="Crime against" control=select suggest { query=crime_against_suggest dimension=crime_against_type }
+  CRIME_AGAINST :: filter<string> is f''
+  # label="Offense" control=select suggest { query=offense_suggest dimension=offense }
+  OFFENSE :: filter<string> is f''
+  # label="LAPD area" control=select suggest { query=area_suggest dimension=area_name }
+  AREA :: filter<string> is f''
+  # label="Victim type" control=select suggest { query=victim_type_suggest dimension=victim_category }
+  VICTIM_TYPE :: filter<string> is f''
+  # label="Victim sex" control=select suggest { query=victim_sex_suggest dimension=victim_sex }
+  VICTIM_SEX :: filter<string> is f''
+  # label="Victim descent" control=select suggest { query=victim_descent_suggest dimension=victim_descent }
+  VICTIM_DESCENT :: filter<string> is f''
+  # label="Victim age" control=select suggest { query=victim_age_suggest dimension=age_group }
+  VICTIM_AGE :: filter<string> is f''
+  # label="Days of week" control=multiselect suggest { query=day_suggest dimension=day_of_week }
+  WEEKDAYS :: filter<string> is f''
+  # label="Months"
+  PERIOD :: filter<date> is f''
+
+// Option lists for the controls (first column = the option), most common first.
+query: crime_against_suggest is offenses_base -> {
+  group_by: crime_against_type
+  aggregate: offense_count
+}
+query: offense_suggest is offenses_base -> {
+  where: crime_against_type ~ $CRIME_AGAINST, area_name ~ $AREA
+  group_by: offense
+  aggregate: offense_count
+}
+query: area_suggest is offenses_base -> {
+  where: area_name is not null
+  group_by: area_name
+  order_by: area_name
+}
+query: victim_type_suggest is victims_base -> { group_by: victim_category; aggregate: victim_count }
+query: victim_sex_suggest is victims_base -> { group_by: victim_sex; aggregate: victim_count }
+query: victim_descent_suggest is victims_base -> { group_by: victim_descent; aggregate: victim_count }
+query: victim_age_suggest is victims_base -> { group_by: age_group; order_by: age_group }
+query: day_suggest is offenses_base -> {
+  group_by: day_of_week
+  aggregate: d is min(day_of_week_number)
+  order_by: d
+}
