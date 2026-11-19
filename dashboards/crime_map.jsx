@@ -146,7 +146,11 @@ export default function Dashboard({ dashboard, givens }) {
     const lat = r.map((d) => d.lat), lon = r.map((d) => d.lon), z = r.map((d) => d.offense_count);
     const text = r.map((d) => `<b>${d.location_label}</b><br>${d.area_label}<br>${fmt(d.offense_count)} offenses`);
     if (view === "heat") {
-      return [{ type: "densitymap", lat, lon, z: z.map((n) => Math.sqrt(n)), radius: 10, colorscale: SEQ, showscale: false,
+      // ~49k blocks: keep the kernel tight and cap the scale so hotspots stand out
+      const w = z.map((n) => Math.sqrt(n));
+      const sorted = [...w].sort((x, y) => x - y);
+      const zmax = (sorted[Math.floor(sorted.length * 0.995)] || 1) * 5;
+      return [{ type: "densitymap", lat, lon, z: w, radius: 5, zmin: 0, zmax, colorscale: SEQ, showscale: false,
         hoverinfo: "skip" }];
     }
     const max = Math.max(1, ...z);
