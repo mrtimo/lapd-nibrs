@@ -1,0 +1,60 @@
+##! experimental.givens
+// "Which crimes happen most to which kinds of victims?" Each victim row in the
+// NIBRS Victims feed names the one offense that victim suffered
+// (victims_base.victim_offense), so these cross-tabs count victims, not cases.
+// Layout and Plotly charts live in the sibling crimes_by_victim.jsx.
+import "../lapd.malloy"
+import "../givens.malloy"
+
+source: filtered_victims is victims_base extend {
+  where:
+    area_name ~ $AREA,
+    occurred_date ~ $PERIOD,
+    day_of_week ~ $WEEKDAYS,
+    victim_category ~ $VICTIM_TYPE,
+    victim_sex ~ $VICTIM_SEX,
+    victim_descent ~ $VICTIM_DESCENT,
+    age_group ~ $VICTIM_AGE
+}
+
+#" Which offenses happen most to which victim types, descents, sexes and ages.
+# artifact { title="Crimes × Victims" } dashboard { columns=4 }
+query: crimes_by_victim is filtered_victims -> {
+  # label="Victims"
+  aggregate: victim_count
+  # label="People"
+  aggregate: people is victim_count { where: victim_category = 'Person' }
+  # label="Offense types"
+  aggregate: offense_types is count(victim_offense)
+  # label="Average age"
+  aggregate: average_age
+}
+
+// ---- queries the dashboard draws (offense x one victim attribute) ----------
+
+query: offense_by_type is filtered_victims -> {
+  group_by: victim_offense, grp is victim_category
+  aggregate: victim_count
+}
+
+query: offense_by_descent is filtered_victims -> {
+  group_by: victim_offense, grp is victim_descent
+  aggregate: victim_count
+}
+
+query: offense_by_sex is filtered_victims -> {
+  group_by: victim_offense, grp is victim_sex
+  aggregate: victim_count
+}
+
+query: offense_by_age is filtered_victims -> {
+  group_by: victim_offense, grp is age_group
+  aggregate: victim_count
+}
+
+// Slider bounds: every month with data since NIBRS reporting began (2024).
+query: victim_months is victims_base -> {
+  where: occurred_date >= @2024-01-01
+  group_by: occurred_month
+  order_by: occurred_month
+}

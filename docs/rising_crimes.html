@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rising Crimes · LA Crime Map</title>
+<link rel="stylesheet" href="./assets/site.css">
+
+</head>
+<body>
+<nav class="dash-nav"><a class="brand" href="./" title="Home" aria-label="Home"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 10.2 12 3.5l9 6.7"/><path d="M5.2 8.9V20h13.6V8.9"/><path d="M9.6 20v-6.2h4.8V20"/></svg></a><span class="sep"></span><a href="./crime_map.html">LA Crime Map</a><a href="./crimes_by_victim.html">Crimes × Victims</a><a href="./rising_crimes.html" class="on">Rising Crimes</a></nav>
+<div id="root"></div>
+<script>
+window.__DASHBOARD__ = {"name":"rising_crimes","query":"rising_crimes","title":"Rising Crimes","description":"Which offenses are rising or falling the most, and in which LAPD areas.","entryFile":"dashboards/rising_crimes.malloy"};
+// Given SPECS (label/type/default/suggest) are introspected from the model's
+// given: declarations at BUILD time — the runtime reads them from here to draw
+// controls and seed initial values. Without them there are no controls and
+// every given starts empty.
+window.__GIVENS__ = [{"name":"CRIME_AGAINST","type":"filter\u003cstring\u003e","filterType":"string","default":"","tags":{"label":"Crime against","control":"select"},"suggest":{"dimension":"crime_against_type","query":"crime_against_suggest"}},{"name":"OFFENSE","type":"filter\u003cstring\u003e","filterType":"string","default":"","tags":{"label":"Offense","control":"select"},"suggest":{"dimension":"offense","query":"offense_suggest"}},{"name":"AREA","type":"filter\u003cstring\u003e","filterType":"string","default":"","tags":{"label":"LAPD area","control":"select"},"suggest":{"dimension":"area_name","query":"area_suggest"}},{"name":"WEEKDAYS","type":"filter\u003cstring\u003e","filterType":"string","default":"","tags":{"label":"Days of week","control":"multiselect"},"suggest":{"dimension":"day_of_week","query":"day_suggest"}},{"name":"RECENT","type":"filter\u003cdate\u003e","filterType":"date","default":"","tags":{"label":"Recent window"}},{"name":"BEFORE","type":"filter\u003cdate\u003e","filterType":"date","default":"","tags":{"label":"Baseline window"}}];
+// __INITIAL_GIVENS__ is NOT set here on purpose: the entry bundle sets it from
+// location.search using shared/givens-url, the same encoder the dev server uses.
+// An inline copy is what drifted last time (it stripped the dollar-sign prefix
+// the runtime keys off, so every shareable link fell back to defaults).
+</script>
+<script src="./assets/model-files.js"></script>
+<script type="module" src="./assets/rising_crimes.js"></script>
+</body>
+</html>

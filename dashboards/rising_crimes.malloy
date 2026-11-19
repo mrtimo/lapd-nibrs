@@ -1,0 +1,69 @@
+##! experimental.givens
+// "Which crimes are increasing the most, and where?" Compares offense counts
+// in a recent window (RECENT) with a baseline window (BEFORE). The dashboard
+// computes both windows from its controls and passes them as date filters.
+// Layout and Plotly charts live in the sibling rising_crimes.jsx.
+import "../lapd.malloy"
+import "../givens.malloy"
+
+given:
+  # label="Recent window"
+  RECENT :: filter<date> is f''
+  # label="Baseline window"
+  BEFORE :: filter<date> is f''
+
+source: trend_offenses is offenses_base extend {
+  where:
+    crime_against_type ~ $CRIME_AGAINST,
+    offense ~ $OFFENSE,
+    area_name ~ $AREA,
+    day_of_week ~ $WEEKDAYS
+}
+
+#" Which offenses are rising or falling the most, and in which LAPD areas.
+# artifact { title="Rising Crimes" } dashboard { columns=4 }
+query: rising_crimes is trend_offenses -> {
+  # label="Recent offenses"
+  aggregate: recent is offense_count { where: occurred_date ~ $RECENT }
+  # label="Baseline offenses"
+  aggregate: baseline is offense_count { where: occurred_date ~ $BEFORE }
+}
+
+// ---- queries the dashboard draws -------------------------------------------
+
+// Counts per offense and area in both windows (~1,200 rows). The component
+// rolls these up to offense-only and area-only views.
+query: trend_by_offense_area is trend_offenses -> {
+  where: area_name is not null
+  group_by: offense, area_name
+  aggregate:
+    recent is offense_count { where: occurred_date ~ $RECENT }
+    baseline is offense_count { where: occurred_date ~ $BEFORE }
+}
+
+// Monthly counts under the current filters. The dashboard narrows OFFENSE and
+// AREA to the selected table row to chart that row's history.
+query: trend_monthly is trend_offenses -> {
+  where: occurred_date >= @2024-01-01
+  group_by: occurred_month
+  aggregate: offense_count
+  order_by: occurred_month
+}
+
+// Centre of each LAPD area, for placing area bubbles on the map.
+query: area_centers is offenses_base -> {
+  where: has_location, area_name is not null
+  group_by: area_name
+  aggregate:
+    lat is avg(lat)
+    lon is avg(lon)
+}
+
+// Every month with data, plus when the data was last reported, so the
+// dashboard can default to the last complete month.
+query: trend_months is offenses_base -> {
+  where: occurred_date >= @2024-01-01
+  group_by: occurred_month
+  aggregate: last_reported is max(date_rptd)
+  order_by: occurred_month
+}

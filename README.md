@@ -1,6 +1,9 @@
 # LAPD NIBRS: offenses & victims as parquet + an LA crime map
 
-**Live dashboard:** https://mrtimo.github.io/lapd-nibrs/crime_map.html
+**Live dashboards:**
+- [LA Crime Map](https://mrtimo.github.io/lapd-nibrs/crime_map.html): where crime happens, with crime, victim and time filters.
+- [Rising Crimes](https://mrtimo.github.io/lapd-nibrs/rising_crimes.html): a sortable table of which offenses are rising or falling the most, and in which LAPD areas.
+- [Crimes × Victims](https://mrtimo.github.io/lapd-nibrs/crimes_by_victim.html): which offenses happen most to which victim types, descents, sexes and ages.
 
 The City of Los Angeles publishes LAPD crime data in the FBI's NIBRS format as two
 CSV datasets. This repo turns them into typed, compressed parquet files, keeps those
@@ -64,6 +67,9 @@ being rebuilt.
 | `givens.malloy` | The dashboard filters: crime against, offense, LAPD area, victim type/sex/descent/age, days of week, months. |
 | `index.malloy` | The export surface (`offenses`, `victims`). |
 | `dashboards/crime_map.malloy` | The dashboard's queries. All nine filters apply to every chart. |
+| `dashboards/rising_crimes.malloy` / `.jsx` | Rising Crimes: compares a recent window (1, 3, 6 or 12 months) with the same months a year earlier or the previous period, for every offense in every area. Sortable table, area map of % change, monthly history of the selected row, biggest movers. |
+| `dashboards/crimes_by_victim.malloy` / `.jsx` | Crimes × Victims: heatmap of offense by victim type, descent, sex or age (counts, row %, column %, or over/under-representation), drill-down bars, and each crime's victim-type mix. |
+| `dashboards/lib/ui.jsx` | Shared Plotly wrapper, cards, toggles, month slider and styles for the two dashboards above. |
 | `dashboards/crime_map.jsx` | The layout, built with Plotly: a heatmap or hundred-block map of LA, top offenses, offenses by month, a day × hour heatmap, offenses by area, and victim breakdowns. It also has the crime and victim dropdowns, a month range slider and a day-of-week multi-select. |
 
 The site in `docs/` is static. Malloy compiles in the browser and DuckDB-WASM runs the
@@ -91,6 +97,11 @@ hundred-block points as a nested list inside a single row.
   reports. A few dates are clearly wrong (the oldest is in 1800).
 - A victim filter keeps the offenses whose incident had at least one matching victim.
 - Locations are rounded to the hundred block by LAPD.
+- Each victim row names the one offense that victim suffered (`victim_ofs_list`); the
+  model exposes it as `victims.victim_offense`, so Crimes × Victims counts victims, not cases.
+- Crimes are often reported weeks after they occur, so the most recent months are
+  undercounted until later refreshes; Rising Crimes defaults to the last complete month
+  and compares with the same months a year earlier.
 
 ## Git history size
 
