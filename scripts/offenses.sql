@@ -45,5 +45,5 @@ COPY (
   FROM read_csv('https://data.lacity.org/api/views/k7nn-b2ep/rows.csv?accessType=DOWNLOAD',
                 header = true, all_varchar = true)
   -- area + date order clusters rows so area/date filters skip row groups
-  ORDER BY area, date_occ, time_occ
+  ORDER BY area, date_occ, time_occ, unique_nibr_no
 ) TO 'data/lapd_nibrs_offenses.parquet' (FORMAT parquet, COMPRESSION zstd);

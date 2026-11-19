@@ -32,5 +32,5 @@ COPY (
     "Status Desc"                                  AS status_desc
   FROM read_csv('https://data.lacity.org/api/views/gqf2-vm2j/rows.csv?accessType=DOWNLOAD',
                 header = true, all_varchar = true)
-  ORDER BY area, date_occ, time_occ
+  ORDER BY area, date_occ, time_occ, unique_victim_no
 ) TO 'data/lapd_nibrs_victims.parquet' (FORMAT parquet, COMPRESSION zstd);
